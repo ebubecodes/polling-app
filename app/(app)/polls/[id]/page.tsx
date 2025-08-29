@@ -1,7 +1,8 @@
 type Params = { params: { id: string } };
 
-export default function PollDetailPage({ params }: Params) {
-  const { id } = params;
+export default async function PollDetailPage({ params }: Params) {
+  const { id } = await params;
+
   return (
     <div className="container mx-auto max-w-3xl py-8">
       <h1 className="text-2xl font-semibold mb-4">Poll #{id}</h1>
@@ -11,5 +12,3 @@ export default function PollDetailPage({ params }: Params) {
     </div>
   );
 }
-
-

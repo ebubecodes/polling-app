@@ -77,6 +77,96 @@ export async function createPollAction(formData: FormData) {
 	}
 }
 
+export async function editPollAction(pollId: string, formData: FormData) {
+	const supabase = await createServerSupabaseClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	
+	if (!user) {
+		redirect("/sign-in");
+	}
+
+	try {
+		// Verify ownership before editing
+		const { data: poll, error: pollError } = await supabase
+			.from("polls")
+			.select("id, owner_id")
+			.eq("id", pollId)
+			.single();
+
+		if (pollError || !poll) {
+			throw new Error("Poll not found");
+		}
+
+		if (poll.owner_id !== user.id) {
+			throw new Error("Unauthorized");
+		}
+
+		// Extract form data
+		const title = formData.get("title") as string;
+		const description = formData.get("description") as string;
+		const question = formData.get("question") as string;
+		const allowMultiple = formData.get("allowMultiple") === "on";
+		const requireAuth = formData.get("requireAuth") === "on";
+		const endDate = formData.get("endDate") as string;
+		const options = formData.getAll("options") as string[];
+
+		// Validate required fields
+		if (!title || !question || options.length < 2) {
+			throw new Error("Missing required fields");
+		}
+
+		// Filter out empty options
+		const validOptions = options.filter(option => option.trim() !== "");
+
+		// Update poll
+		const { error: updateError } = await supabase
+			.from("polls")
+			.update({
+				title: title.trim(),
+				description: description.trim() || null,
+				question: question.trim(),
+				allow_multiple: allowMultiple,
+				require_auth: requireAuth,
+				end_date: endDate || null,
+			})
+			.eq("id", pollId);
+
+		if (updateError) {
+			console.error("Error updating poll:", updateError);
+			throw new Error("Failed to update poll");
+		}
+
+		// Delete existing options
+		await supabase
+			.from("poll_options")
+			.delete()
+			.eq("poll_id", pollId);
+
+		// Create new poll options
+		const pollOptions = validOptions.map((text, index) => ({
+			poll_id: pollId,
+			text: text.trim(),
+			order_index: index,
+		}));
+
+		const { error: optionsError } = await supabase
+			.from("poll_options")
+			.insert(pollOptions);
+
+		if (optionsError) {
+			console.error("Error updating poll options:", optionsError);
+			throw new Error("Failed to update poll options");
+		}
+
+		revalidatePath("/polls");
+		revalidatePath(`/polls/${pollId}`);
+		redirect(`/polls/${pollId}`);
+	} catch (error) {
+		console.error("Error in editPollAction:", error);
+		throw error;
+	}
+}
+
 export async function deletePollAction(pollId: string) {
 	const supabase = await createServerSupabaseClient();
 	const { data: { user } } = await supabase.auth.getUser();

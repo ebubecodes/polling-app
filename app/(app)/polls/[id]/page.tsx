@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createServerSupabaseClient } from "@/lib/supabase/server-client";
 import { notFound } from "next/navigation";
 import { SharePoll } from "@/components/polls/share-poll";
+import { PollActions } from "@/components/polls/poll-actions";
 
 interface PollOption {
   id: string;
@@ -79,10 +80,7 @@ export default async function PollPage({ params }: { params: { id: string } }) {
           ← Back to Polls
         </Link>
         {isAuthenticated && isOwner && (
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">Edit Poll</Button>
-            <Button variant="destructive" size="sm">Delete</Button>
-          </div>
+          <PollActions pollId={typedPoll.id} />
         )}
       </div>
 

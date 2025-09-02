@@ -2,28 +2,72 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createServerSupabaseClient } from "@/lib/supabase/server-client";
+import { notFound } from "next/navigation";
+import { SharePoll } from "@/components/polls/share-poll";
 
-// Mock data for demonstration
-const mockPoll = {
-  id: "1",
-  title: "Favorite Programming Language",
-  question: "What programming language do you prefer to use?",
-  options: [
-    { id: "1", text: "JavaScript", votes: 15 },
-    { id: "2", text: "Python", votes: 12 },
-    { id: "3", text: "Java", votes: 8 },
-    { id: "4", text: "C#", votes: 4 },
-    { id: "5", text: "Go", votes: 3 },
-  ],
-  totalVotes: 42,
-  createdBy: "John Doe",
-  createdAt: "2023-10-15",
-};
+interface PollOption {
+  id: string;
+  text: string;
+  order_index: number;
+}
+
+interface Vote {
+  id: string;
+}
+
+interface PollWithDetails {
+  id: string;
+  title: string;
+  description: string | null;
+  question: string;
+  owner_id: string;
+  created_at: string;
+  end_date: string | null;
+  poll_options: PollOption[];
+  votes: Vote[];
+}
 
 export default async function PollPage({ params }: { params: { id: string } }) {
   const supabase = await createServerSupabaseClient();
   const { data: { session } } = await supabase.auth.getSession();
   const isAuthenticated = Boolean(session);
+
+  // Fetch poll with options and vote counts
+  const { data: poll, error: pollError } = await supabase
+    .from('polls')
+    .select(`
+      *,
+      poll_options (
+        id,
+        text,
+        order_index
+      ),
+      votes (
+        id
+      )
+    `)
+    .eq('id', params.id)
+    .single();
+
+  if (pollError || !poll) {
+    console.error('Error fetching poll:', pollError);
+    notFound();
+  }
+
+  const typedPoll = poll as PollWithDetails;
+
+  // Get user info for the poll owner
+  const { data: ownerUser } = await supabase.auth.admin.getUserById(typedPoll.owner_id);
+  const ownerName = ownerUser?.user?.email?.split('@')[0] || 'Unknown User';
+
+  // Calculate total votes
+  const totalVotes = typedPoll.votes?.length || 0;
+
+  // Sort options by order_index
+  const sortedOptions = typedPoll.poll_options?.sort((a: PollOption, b: PollOption) => a.order_index - b.order_index) || [];
+
+  // Check if current user is the poll owner
+  const isOwner = session?.user?.id === typedPoll.owner_id;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
@@ -34,7 +78,7 @@ export default async function PollPage({ params }: { params: { id: string } }) {
         >
           ← Back to Polls
         </Link>
-        {isAuthenticated && (
+        {isAuthenticated && isOwner && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm">Edit Poll</Button>
             <Button variant="destructive" size="sm">Delete</Button>
@@ -45,14 +89,19 @@ export default async function PollPage({ params }: { params: { id: string } }) {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-foreground">
-            {mockPoll.title}
+            {typedPoll.title}
           </CardTitle>
+          {typedPoll.description && (
+            <p className="text-muted-foreground">
+              {typedPoll.description}
+            </p>
+          )}
           <p className="text-muted-foreground">
-            {mockPoll.question}
+            {typedPoll.question}
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {mockPoll.options.map((option) => (
+          {sortedOptions.map((option: PollOption) => (
             <div
               key={option.id}
               className="flex items-center p-3 border border-border rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
@@ -62,30 +111,29 @@ export default async function PollPage({ params }: { params: { id: string } }) {
               </div>
             </div>
           ))}
-          <Button className="w-full mt-4">Submit Vote</Button>
+          
+          {typedPoll.end_date && new Date(typedPoll.end_date) < new Date() ? (
+            <div className="text-center py-4 text-muted-foreground">
+              This poll has ended
+            </div>
+          ) : (
+            <Button className="w-full mt-4">Submit Vote</Button>
+          )}
           
           <div className="flex items-center justify-between text-sm text-muted-foreground mt-4 pt-4 border-t">
-            <span>Created by {mockPoll.createdBy}</span>
-            <span>Created on {new Date(mockPoll.createdAt).toLocaleDateString()}</span>
+            <span>Created by {ownerName}</span>
+            <span>Created on {new Date(typedPoll.created_at).toLocaleDateString()}</span>
           </div>
+          
+          {totalVotes > 0 && (
+            <div className="text-sm text-muted-foreground text-center pt-2">
+              {totalVotes} total vote{totalVotes !== 1 ? 's' : ''}
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Share this poll</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1">
-              Copy Link
-            </Button>
-            <Button variant="outline" className="flex-1">
-              Share on Twitter
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <SharePoll />
     </div>
   );
 }

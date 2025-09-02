@@ -5,65 +5,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-
-interface PollFormData {
-  title: string;
-  description: string;
-  options: string[];
-  allowMultiple: boolean;
-  requireAuth: boolean;
-  endDate: string;
-}
+import { createPollAction } from "@/lib/actions/polls";
+import { useRouter } from "next/navigation";
 
 export function PollForm() {
   const [activeTab, setActiveTab] = useState<'basic' | 'settings'>('basic');
-  const [formData, setFormData] = useState<PollFormData>({
-    title: "",
-    description: "",
-    options: ["", ""],
-    allowMultiple: false,
-    requireAuth: true,
-    endDate: "",
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const router = useRouter();
 
-  const updateFormData = (field: keyof PollFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const addOption = () => {
-    setFormData(prev => ({
-      ...prev,
-      options: [...prev.options, ""]
-    }));
-  };
-
-  const removeOption = (index: number) => {
-    if (formData.options.length > 2) {
-      setFormData(prev => ({
-        ...prev,
-        options: prev.options.filter((_, i) => i !== index)
-      }));
+  const handleSubmit = async (formData: FormData) => {
+    setIsSubmitting(true);
+    try {
+      await createPollAction(formData);
+    } catch (error) {
+      console.error("Error creating poll:", error);
+      setIsSubmitting(false);
+      // You could add error handling UI here
     }
-  };
-
-  const updateOption = (index: number, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      options: prev.options.map((opt, i) => i === index ? value : opt)
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submitted:', formData);
-    // TODO: Implement form submission
   };
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold text-foreground">Create New Poll</h1>
-        <Button variant="outline">Cancel</Button>
+        <Button variant="outline" onClick={() => router.push("/polls")}>
+          Cancel
+        </Button>
       </div>
 
       <div className="flex space-x-1 mb-6">
@@ -91,7 +58,7 @@ export function PollForm() {
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form action={handleSubmit} className="space-y-6">
         {activeTab === 'basic' && (
           <Card>
             <CardHeader>
@@ -105,9 +72,18 @@ export function PollForm() {
                 <Label htmlFor="title">Poll Title</Label>
                 <Input
                   id="title"
-                  value={formData.title}
-                  onChange={(e) => updateFormData('title', e.target.value)}
+                  name="title"
                   placeholder="Enter a question or title"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="question">Question</Label>
+                <Input
+                  id="question"
+                  name="question"
+                  placeholder="What should people vote on?"
                   required
                 />
               </div>
@@ -116,45 +92,14 @@ export function PollForm() {
                 <Label htmlFor="description">Description (Optional)</Label>
                 <Input
                   id="description"
-                  value={formData.description}
-                  onChange={(e) => updateFormData('description', e.target.value)}
+                  name="description"
                   placeholder="Provide more context about your poll"
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Poll Options</Label>
-                <div className="space-y-2">
-                  {formData.options.map((option, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        value={option}
-                        onChange={(e) => updateOption(index, e.target.value)}
-                        placeholder={`Option ${index + 1}`}
-                        required
-                      />
-                      {formData.options.length > 2 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeOption(index)}
-                          className="text-destructive hover:text-destructive"
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={addOption}
-                  className="mt-2"
-                >
-                  Add Option
-                </Button>
+                <PollOptionsInput />
               </div>
             </CardContent>
           </Card>
@@ -172,10 +117,7 @@ export function PollForm() {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="allowMultiple"
-                  checked={formData.allowMultiple}
-                  onCheckedChange={(checked) => 
-                    updateFormData('allowMultiple', checked)
-                  }
+                  name="allowMultiple"
                 />
                 <Label htmlFor="allowMultiple">
                   Allow users to select multiple options
@@ -185,10 +127,8 @@ export function PollForm() {
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="requireAuth"
-                  checked={formData.requireAuth}
-                  onCheckedChange={(checked) => 
-                    updateFormData('requireAuth', checked)
-                  }
+                  name="requireAuth"
+                  defaultChecked
                 />
                 <Label htmlFor="requireAuth">
                   Require users to be logged in to vote
@@ -199,9 +139,8 @@ export function PollForm() {
                 <Label htmlFor="endDate">Poll End Date (Optional)</Label>
                 <Input
                   id="endDate"
+                  name="endDate"
                   type="datetime-local"
-                  value={formData.endDate}
-                  onChange={(e) => updateFormData('endDate', e.target.value)}
                 />
               </div>
             </CardContent>
@@ -209,11 +148,64 @@ export function PollForm() {
         )}
 
         <div className="flex justify-center">
-          <Button type="submit" size="lg">
-            Create Poll
+          <Button type="submit" size="lg" disabled={isSubmitting}>
+            {isSubmitting ? "Creating Poll..." : "Create Poll"}
           </Button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function PollOptionsInput() {
+  const [options, setOptions] = useState<string[]>(["", ""]);
+
+  const addOption = () => {
+    setOptions([...options, ""]);
+  };
+
+  const removeOption = (index: number) => {
+    if (options.length > 2) {
+      setOptions(options.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateOption = (index: number, value: string) => {
+    setOptions(options.map((opt, i) => i === index ? value : opt));
+  };
+
+  return (
+    <div className="space-y-2">
+      {options.map((option, index) => (
+        <div key={index} className="flex gap-2">
+          <Input
+            name="options"
+            value={option}
+            onChange={(e) => updateOption(index, e.target.value)}
+            placeholder={`Option ${index + 1}`}
+            required
+          />
+          {options.length > 2 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => removeOption(index)}
+              className="text-destructive hover:text-destructive"
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={addOption}
+        className="mt-2"
+      >
+        Add Option
+      </Button>
     </div>
   );
 }

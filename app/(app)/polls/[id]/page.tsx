@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { createServerSupabaseClient } from "@/lib/supabase/server-client";
 
 // Mock data for demonstration
 const mockPoll = {
@@ -19,7 +20,11 @@ const mockPoll = {
   createdAt: "2023-10-15",
 };
 
-export default function PollPage({ params }: { params: { id: string } }) {
+export default async function PollPage({ params }: { params: { id: string } }) {
+  const supabase = await createServerSupabaseClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  const isAuthenticated = Boolean(session);
+
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -29,10 +34,12 @@ export default function PollPage({ params }: { params: { id: string } }) {
         >
           ← Back to Polls
         </Link>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">Edit Poll</Button>
-          <Button variant="destructive" size="sm">Delete</Button>
-        </div>
+        {isAuthenticated && (
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm">Edit Poll</Button>
+            <Button variant="destructive" size="sm">Delete</Button>
+          </div>
+        )}
       </div>
 
       <Card className="mb-6">

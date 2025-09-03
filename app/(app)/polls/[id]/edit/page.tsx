@@ -3,11 +3,14 @@ import { createServerSupabaseClient } from "@/lib/supabase/server-client";
 import { EditPollForm } from "@/components/polls/edit-poll-form";
 import { notFound } from "next/navigation";
 
-export default async function EditPollPage({ params }: { params: { id: string } }) {
+export default async function EditPollPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params; // Await params to resolve the promise
   const supabase = await createServerSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
   
-  if (!session) {
+  // Use getUser() for server-side authentication as recommended
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
     redirect("/sign-in");
   }
 
@@ -22,7 +25,7 @@ export default async function EditPollPage({ params }: { params: { id: string } 
         order_index
       )
     `)
-    .eq('id', params.id)
+    .eq('id', id) // Use the resolved id
     .single();
 
   if (pollError || !poll) {
@@ -31,7 +34,7 @@ export default async function EditPollPage({ params }: { params: { id: string } 
   }
 
   // Check if user owns this poll
-  if (poll.owner_id !== session.user.id) {
+  if (poll.owner_id !== user.id) {
     redirect("/polls");
   }
 

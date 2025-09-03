@@ -28,10 +28,11 @@ interface PollWithDetails {
   votes: Vote[];
 }
 
-export default async function PollPage({ params }: { params: { id: string } }) {
+export default async function PollPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await createServerSupabaseClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const isAuthenticated = Boolean(session);
+  const { data: { user } } = await supabase.auth.getUser();
+  const isAuthenticated = Boolean(user);
 
   // Fetch poll with options and vote counts
   const { data: poll, error: pollError } = await supabase
@@ -47,7 +48,7 @@ export default async function PollPage({ params }: { params: { id: string } }) {
         id
       )
     `)
-    .eq('id', params.id)
+    .eq('id', id)
     .single();
 
   if (pollError || !poll) {
@@ -68,7 +69,7 @@ export default async function PollPage({ params }: { params: { id: string } }) {
   const sortedOptions = typedPoll.poll_options?.sort((a: PollOption, b: PollOption) => a.order_index - b.order_index) || [];
 
   // Check if current user is the poll owner
-  const isOwner = session?.user?.id === typedPoll.owner_id;
+  const isOwner = user?.id === typedPoll.owner_id;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">

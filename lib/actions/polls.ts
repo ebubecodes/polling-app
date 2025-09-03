@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server-client";
-import { CreatePollData } from "@/lib/types/database";
 
 export async function createPollAction(formData: FormData) {
 	const supabase = await createServerSupabaseClient();
@@ -12,6 +11,8 @@ export async function createPollAction(formData: FormData) {
 	if (!user) {
 		redirect("/sign-in");
 	}
+
+	let pollId: string | null = null;
 
 	try {
 		// Extract form data
@@ -69,11 +70,17 @@ export async function createPollAction(formData: FormData) {
 			throw new Error("Failed to create poll options");
 		}
 
-		revalidatePath("/polls");
-		redirect(`/polls/${poll.id}`);
+		pollId = poll.id;
+
 	} catch (error) {
 		console.error("Error in createPollAction:", error);
-		throw error;
+		throw error; // Re-throw the error to be handled by the caller or an error boundary
+	}
+
+	// Redirect only after the try-catch block has completed successfully
+	if (pollId) {
+		revalidatePath("/polls");
+		redirect(`/polls/${pollId}`);
 	}
 }
 
@@ -158,13 +165,15 @@ export async function editPollAction(pollId: string, formData: FormData) {
 			throw new Error("Failed to update poll options");
 		}
 
-		revalidatePath("/polls");
-		revalidatePath(`/polls/${pollId}`);
-		redirect(`/polls/${pollId}`);
 	} catch (error) {
 		console.error("Error in editPollAction:", error);
 		throw error;
 	}
+
+	// Redirect after successful update
+	revalidatePath("/polls");
+	revalidatePath(`/polls/${pollId}`);
+	redirect(`/polls/${pollId}`);
 }
 
 export async function deletePollAction(pollId: string) {
@@ -201,10 +210,12 @@ export async function deletePollAction(pollId: string) {
 			throw new Error("Failed to delete poll");
 		}
 
-		revalidatePath("/polls");
-		redirect("/polls");
 	} catch (error) {
 		console.error("Error in deletePollAction:", error);
 		throw error;
 	}
+
+	// Redirect after successful deletion
+	revalidatePath("/polls");
+	redirect("/polls");
 }

@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createServerSupabaseClient } from "@/lib/supabase/server-client";
 import { notFound } from "next/navigation";
 import { SharePoll } from "@/components/polls/share-poll";
 import { PollActions } from "@/components/polls/poll-actions";
+import { VoteForm } from "@/components/polls/vote-form";
 
 interface PollOption {
   id: string;
@@ -100,23 +100,28 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
-          {sortedOptions.map((option: PollOption) => (
-            <div
-              key={option.id}
-              className="flex items-center p-3 border border-border rounded-md hover:bg-muted/50 transition-colors cursor-pointer"
-            >
-              <div className="flex-1">
-                <span className="text-foreground">{option.text}</span>
-              </div>
-            </div>
-          ))}
-          
           {typedPoll.end_date && new Date(typedPoll.end_date) < new Date() ? (
-            <div className="text-center py-4 text-muted-foreground">
-              This poll has ended
-            </div>
+            <>
+              {sortedOptions.map((option: PollOption) => (
+                <div
+                  key={option.id}
+                  className="flex items-center p-3 border border-border rounded-md transition-colors"
+                >
+                  <div className="flex-1">
+                    <span className="text-foreground">{option.text}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="text-center py-4 text-muted-foreground">
+                This poll has ended
+              </div>
+            </>
           ) : (
-            <Button className="w-full mt-4">Submit Vote</Button>
+            <VoteForm 
+              pollId={typedPoll.id} 
+              options={sortedOptions} 
+              allowMultiple={false} 
+            />
           )}
           
           <div className="flex items-center justify-between text-sm text-muted-foreground mt-4 pt-4 border-t">

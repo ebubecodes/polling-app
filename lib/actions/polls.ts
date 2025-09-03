@@ -219,3 +219,62 @@ export async function deletePollAction(pollId: string) {
 	revalidatePath("/polls");
 	redirect("/polls");
 }
+
+export async function submitVoteAction(formData: FormData) {
+	const supabase = await createServerSupabaseClient();
+	const { data: { user } } = await supabase.auth.getUser();
+	
+	const pollId = formData.get("pollId") as string;
+	const optionId = formData.get("optionId") as string;
+	
+	if (!pollId || !optionId) {
+		throw new Error("Missing required fields");
+	}
+
+	try {
+		// Fetch poll to check if authentication is required
+		const { data: poll, error: pollError } = await supabase
+			.from("polls")
+			.select("require_auth, end_date")
+			.eq("id", pollId)
+			.single();
+
+		if (pollError || !poll) {
+			throw new Error("Poll not found");
+		}
+
+		// Check if poll has ended
+		if (poll.end_date && new Date(poll.end_date) < new Date()) {
+			throw new Error("This poll has ended");
+		}
+
+		// Check if authentication is required
+		if (poll.require_auth && !user) {
+			redirect("/sign-in");
+		}
+
+		// Create vote
+		const { error: voteError } = await supabase
+			.from("votes")
+			.insert({
+				poll_id: pollId,
+				option_id: optionId,
+				voter_id: user?.id || null,
+				voter_ip: null, // Could be implemented with middleware
+				voter_user_agent: null, // Could be implemented with middleware
+			});
+
+		if (voteError) {
+			console.error("Error submitting vote:", voteError);
+			throw new Error("Failed to submit vote");
+		}
+
+	} catch (error) {
+		console.error("Error in submitVoteAction:", error);
+		throw error;
+	}
+
+	// Revalidate the poll page to show updated results
+	revalidatePath(`/polls/${pollId}`);
+	return { success: true };
+}

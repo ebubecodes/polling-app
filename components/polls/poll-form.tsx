@@ -17,6 +17,7 @@ export function PollForm() {
     setIsSubmitting(true);
     try {
       await createPollAction(formData);
+      // No need to set isSubmitting back to false, as we'll be redirecting
     } catch (error) {
       console.error("Error creating poll:", error);
       setIsSubmitting(false);
@@ -58,8 +59,15 @@ export function PollForm() {
         </button>
       </div>
 
-      <form action={handleSubmit} className="space-y-6">
-        {activeTab === 'basic' && (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          handleSubmit(formData);
+        }}
+        className="space-y-6"
+      >
+        <div hidden={activeTab !== 'basic'}>
           <Card>
             <CardHeader>
               <CardTitle>Poll Information</CardTitle>
@@ -103,9 +111,9 @@ export function PollForm() {
               </div>
             </CardContent>
           </Card>
-        )}
+        </div>
 
-        {activeTab === 'settings' && (
+        <div hidden={activeTab !== 'settings'}>
           <Card>
             <CardHeader>
               <CardTitle>Poll Settings</CardTitle>
@@ -145,7 +153,7 @@ export function PollForm() {
               </div>
             </CardContent>
           </Card>
-        )}
+        </div>
 
         <div className="flex justify-center">
           <Button type="submit" size="lg" disabled={isSubmitting}>

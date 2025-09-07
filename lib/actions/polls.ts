@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServerSupabaseClient } from "@/lib/supabase/server-client";
 
+/**
+ * Server action to create a new poll.
+ * Authenticates the user, validates form data, and inserts the poll and its options into the database.
+ * Redirects to the new poll's page on success.
+ * @param formData The form data submitted by the user.
+ * @throws Throws an error if the user is not authenticated, if required fields are missing, or if there's a database error.
+ */
 export async function createPollAction(formData: FormData) {
 	const supabase = await createServerSupabaseClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -84,6 +91,15 @@ export async function createPollAction(formData: FormData) {
 	}
 }
 
+/**
+ * Server action to edit an existing poll.
+ * Verifies that the current user is the owner of the poll before applying updates.
+ * Deletes and re-inserts poll options to reflect changes.
+ * Redirects to the updated poll's page on success.
+ * @param pollId The ID of the poll to edit.
+ * @param formData The form data containing the updated poll information.
+ * @throws Throws an error if the user is not authenticated, not the owner, or if there's a database error.
+ */
 export async function editPollAction(pollId: string, formData: FormData) {
 	const supabase = await createServerSupabaseClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -176,6 +192,14 @@ export async function editPollAction(pollId: string, formData: FormData) {
 	redirect(`/polls/${pollId}`);
 }
 
+/**
+ * Server action to delete a poll.
+ * Verifies that the current user is the owner of the poll before deleting it.
+ * The deletion cascades in the database to also remove related poll options and votes.
+ * Redirects to the main polls list on success.
+ * @param pollId The ID of the poll to delete.
+ * @throws Throws an error if the user is not authenticated, not the owner, or if there's a database error.
+ */
 export async function deletePollAction(pollId: string) {
 	const supabase = await createServerSupabaseClient();
 	const { data: { user } } = await supabase.auth.getUser();
@@ -220,6 +244,14 @@ export async function deletePollAction(pollId: string) {
 	redirect("/polls");
 }
 
+/**
+ * Server action to submit a vote on a poll.
+ * Checks if the poll requires authentication and if the user has already voted.
+ * Inserts the new vote into the database.
+ * @param formData The form data containing the poll and option IDs.
+ * @returns A promise that resolves to an object with a `success` boolean.
+ * @throws Throws an error if required fields are missing, the poll is not found, the poll has ended, or the user has already voted.
+ */
 export async function submitVoteAction(formData: FormData) {
 	const supabase = await createServerSupabaseClient();
 	const { data: { user } } = await supabase.auth.getUser();

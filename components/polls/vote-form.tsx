@@ -16,6 +16,16 @@ interface VoteFormProps {
   allowMultiple: boolean;
 }
 
+/**
+ * Renders a form for users to cast a vote on a poll.
+ * It displays the poll options and handles the submission state.
+ * After a successful vote, it shows a confirmation message.
+ *
+ * @param {VoteFormProps} props The props for the component.
+ * @param {string} props.pollId The ID of the poll.
+ * @param {PollOption[]} props.options An array of poll options to display.
+ * @param {boolean} props.allowMultiple Whether the poll allows selecting multiple options (currently supports single selection).
+ */
 export function VoteForm({ pollId, options, allowMultiple }: VoteFormProps) {
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);

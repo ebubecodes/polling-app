@@ -14,6 +14,14 @@ interface PollCardProps {
   poll: Poll;
 }
 
+/**
+ * A card component that displays a summary of a poll.
+ * It shows the poll's title, question, and key stats like the number of options and total votes.
+ * The entire card is a link that navigates to the detailed poll page.
+ *
+ * @param {PollCardProps} props The props for the component.
+ * @param {Poll} props.poll The poll object containing details to display.
+ */
 export function PollCard({ poll }: PollCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

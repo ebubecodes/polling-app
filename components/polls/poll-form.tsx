@@ -8,6 +8,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { createPollAction } from "@/lib/actions/polls";
 import { useRouter } from "next/navigation";
 
+/**
+ * Renders a multi-tabbed form for creating a new poll.
+ * It handles the entire poll creation process, including basic info, settings, and dynamic poll options.
+ * This component is a client component and manages its own state for UI interactivity.
+ * On submission, it calls the `createPollAction` server action.
+ */
 export function PollForm() {
   const [activeTab, setActiveTab] = useState<'basic' | 'settings'>('basic');
   const [isSubmitting, setIsSubmitting] = useState(false);

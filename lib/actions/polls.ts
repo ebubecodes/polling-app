@@ -253,6 +253,25 @@ export async function submitVoteAction(formData: FormData) {
 			redirect("/sign-in");
 		}
 
+		// Prevent duplicate votes for authenticated users
+		if (user) {
+			const { data: existingVote, error: existingVoteError } = await supabase
+				.from("votes")
+				.select("id")
+				.eq("poll_id", pollId)
+				.eq("voter_id", user.id)
+				.single();
+
+			if (existingVoteError && existingVoteError.code !== 'PGRST116') { // Ignore 'not found' error
+				console.error("Error checking for existing vote:", existingVoteError);
+				throw new Error("Failed to verify vote");
+			}
+
+			if (existingVote) {
+				throw new Error("You have already voted on this poll");
+			}
+		}
+
 		// Create vote
 		const { error: voteError } = await supabase
 			.from("votes")

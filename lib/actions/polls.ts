@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { v4 as uuidv4 } from "uuid";
 import { createServerSupabaseClient } from "@/lib/supabase/server-client";
 
 /**
@@ -249,21 +251,21 @@ export async function deletePollAction(pollId: string) {
  * Checks if the poll requires authentication and if the user has already voted.
  * Inserts the new vote into the database.
  * @param formData The form data containing the poll and option IDs.
- * @returns A promise that resolves to an object with a `success` boolean.
- * @throws Throws an error if required fields are missing, the poll is not found, the poll has ended, or the user has already voted.
+ * @returns A promise that resolves to an object with a `success` boolean and an optional `error` message.
  */
-export async function submitVoteAction(formData: FormData) {
+export async function submitVoteAction(formData: FormData): Promise<{ success: boolean; error?: string }> {
 	const supabase = await createServerSupabaseClient();
-	const { data: { user } } = await supabase.auth.getUser();
-	
-	const pollId = formData.get("pollId") as string;
-	const optionId = formData.get("optionId") as string;
-	
-	if (!pollId || !optionId) {
-		throw new Error("Missing required fields");
-	}
 
 	try {
+		const { data: { user } } = await supabase.auth.getUser();
+		
+		const pollId = formData.get("pollId") as string;
+		const optionId = formData.get("optionId") as string;
+		
+		if (!pollId || !optionId) {
+			return { success: false, error: "Missing required fields" };
+		}
+
 		// Fetch poll to check if authentication is required
 		const { data: poll, error: pollError } = await supabase
 			.from("polls")
@@ -272,21 +274,25 @@ export async function submitVoteAction(formData: FormData) {
 			.single();
 
 		if (pollError || !poll) {
-			throw new Error("Poll not found");
+			return { success: false, error: "Poll not found" };
 		}
 
 		// Check if poll has ended
 		if (poll.end_date && new Date(poll.end_date) < new Date()) {
-			throw new Error("This poll has ended");
+			return { success: false, error: "This poll has ended" };
 		}
 
 		// Check if authentication is required
 		if (poll.require_auth && !user) {
-			redirect("/sign-in");
+			// This should ideally not be hit if the UI prevents voting, but as a safeguard:
+			return { success: false, error: "Authentication is required to vote on this poll." };
 		}
 
-		// Prevent duplicate votes for authenticated users
+		let anonymousVoterId: string | undefined;
+
+		// Prevent duplicate votes
 		if (user) {
+			// Authenticated user
 			const { data: existingVote, error: existingVoteError } = await supabase
 				.from("votes")
 				.select("id")
@@ -296,11 +302,40 @@ export async function submitVoteAction(formData: FormData) {
 
 			if (existingVoteError && existingVoteError.code !== 'PGRST116') { // Ignore 'not found' error
 				console.error("Error checking for existing vote:", existingVoteError);
-				throw new Error("Failed to verify vote");
+				return { success: false, error: "Failed to verify vote" };
 			}
 
 			if (existingVote) {
-				throw new Error("You have already voted on this poll");
+				return { success: false, error: "You have already voted on this poll" };
+			}
+		} else {
+			// Anonymous user - only interact with cookies here
+			const cookieStore = cookies();
+			anonymousVoterId = cookieStore.get("anonymous_voter_id")?.value;
+
+			if (anonymousVoterId) {
+				const { data: existingVote, error: existingVoteError } = await supabase
+					.from("votes")
+					.select("id")
+					.eq("poll_id", pollId)
+					.eq("anonymous_voter_id", anonymousVoterId)
+					.single();
+				
+				if (existingVoteError && existingVoteError.code !== 'PGRST116') {
+					console.error("Error checking for existing anonymous vote:", existingVoteError);
+					return { success: false, error: "Failed to verify anonymous vote" };
+				}
+
+				if (existingVote) {
+					return { success: false, error: "You have already voted on this poll" };
+				}
+			} else {
+				anonymousVoterId = uuidv4();
+				cookieStore.set("anonymous_voter_id", anonymousVoterId, {
+					httpOnly: true,
+					secure: process.env.NODE_ENV === "production",
+					maxAge: 60 * 60 * 24 * 365, // 1 year
+				});
 			}
 		}
 
@@ -311,21 +346,23 @@ export async function submitVoteAction(formData: FormData) {
 				poll_id: pollId,
 				option_id: optionId,
 				voter_id: user?.id || null,
-				voter_ip: null, // Could be implemented with middleware
-				voter_user_agent: null, // Could be implemented with middleware
+				anonymous_voter_id: user ? null : anonymousVoterId,
 			});
 
 		if (voteError) {
 			console.error("Error submitting vote:", voteError);
-			throw new Error("Failed to submit vote");
+			return { success: false, error: "Failed to submit vote" };
 		}
+
+		// Revalidate the poll page to show updated results
+		revalidatePath(`/polls/${pollId}`);
+		return { success: true };
 
 	} catch (error) {
 		console.error("Error in submitVoteAction:", error);
-		throw error;
+		if (error instanceof Error) {
+			return { success: false, error: error.message };
+		}
+		return { success: false, error: "An unexpected error occurred" };
 	}
-
-	// Revalidate the poll page to show updated results
-	revalidatePath(`/polls/${pollId}`);
-	return { success: true };
 }

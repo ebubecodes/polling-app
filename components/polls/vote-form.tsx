@@ -46,8 +46,13 @@ export function VoteForm({ pollId, options, allowMultiple }: VoteFormProps) {
       formData.append("optionId", selectedOptionId);
       
       const result = await submitVoteAction(formData);
+      
       if (result.success) {
         setSuccess(true);
+      } else if (result.error) {
+        setError(result.error);
+      } else {
+        setError("An unexpected error occurred.");
       }
     } catch (err) {
       console.error("Error submitting vote:", err);

@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { SharePoll } from "@/components/polls/share-poll";
 import { PollActions } from "@/components/polls/poll-actions";
 import { VoteForm } from "@/components/polls/vote-form";
+import { PollResultsChart } from "@/components/polls/poll-results-chart";
 
 interface PollOption {
   id: string;
@@ -34,7 +35,7 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
   const { data: { user } } = await supabase.auth.getUser();
   const isAuthenticated = Boolean(user);
 
-  // Fetch poll with options and vote counts
+  // Fetch poll with options and vote counts (include option_id in votes)
   const { data: poll, error: pollError } = await supabase
     .from('polls')
     .select(`
@@ -45,7 +46,8 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
         order_index
       ),
       votes (
-        id
+        id,
+        option_id
       )
     `)
     .eq('id', id)
@@ -64,6 +66,9 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
 
   // Calculate total votes
   const totalVotes = typedPoll.votes?.length || 0;
+
+  // Prepare votes with option_id for chart
+  const votesWithOption = (poll.votes || []) as Array<{ id: string; option_id: string }>;
 
   // Sort options by order_index
   const sortedOptions = typedPoll.poll_options?.sort((a: PollOption, b: PollOption) => a.order_index - b.order_index) || [];
@@ -102,25 +107,29 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
         <CardContent className="space-y-3">
           {typedPoll.end_date && new Date(typedPoll.end_date) < new Date() ? (
             <>
-              {sortedOptions.map((option: PollOption) => (
-                <div
-                  key={option.id}
-                  className="flex items-center p-3 border border-border rounded-md transition-colors"
-                >
-                  <div className="flex-1">
-                    <span className="text-foreground">{option.text}</span>
-                  </div>
-                </div>
-              ))}
+              <PollResultsChart
+                options={sortedOptions.map(o => ({ id: o.id, text: o.text }))}
+                votes={votesWithOption}
+              />
               <div className="text-center py-4 text-muted-foreground">
                 This poll has ended
               </div>
+              {isOwner && (
+                <div className="flex justify-center mt-4">
+                  <Link
+                    href={`/polls/${typedPoll.id}/edit`}
+                    className="inline-block px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+                  >
+                    Edit Poll
+                  </Link>
+                </div>
+              )}
             </>
           ) : (
-            <VoteForm 
-              pollId={typedPoll.id} 
-              options={sortedOptions} 
-              allowMultiple={false} 
+            <VoteForm
+              pollId={typedPoll.id}
+              options={sortedOptions}
+              allowMultiple={false}
             />
           )}
           

@@ -114,16 +114,6 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
               <div className="text-center py-4 text-muted-foreground">
                 This poll has ended
               </div>
-              {isOwner && (
-                <div className="flex justify-center mt-4">
-                  <Link
-                    href={`/polls/${typedPoll.id}/edit`}
-                    className="inline-block px-4 py-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
-                  >
-                    Edit Poll
-                  </Link>
-                </div>
-              )}
             </>
           ) : (
             <VoteForm

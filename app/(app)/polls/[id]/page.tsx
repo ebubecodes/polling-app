@@ -144,7 +144,7 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
         </CardContent>
       </Card>
 
-      <SharePoll />
+      <SharePoll pollId={typedPoll.id} />
     </div>
   );
 }

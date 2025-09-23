@@ -105,7 +105,7 @@ export function EditPollForm({ poll }: EditPollFormProps) {
       </div>
 
       <form action={handleSubmit} className="space-y-6">
-        {activeTab === 'basic' && (
+        <div hidden={activeTab !== 'basic'}>
           <Card>
             <CardHeader>
               <CardTitle>Poll Information</CardTitle>
@@ -183,9 +183,9 @@ export function EditPollForm({ poll }: EditPollFormProps) {
               </div>
             </CardContent>
           </Card>
-        )}
+        </div>
 
-        {activeTab === 'settings' && (
+        <div hidden={activeTab !== 'settings'}>
           <Card>
             <CardHeader>
               <CardTitle>Poll Settings</CardTitle>
@@ -227,7 +227,7 @@ export function EditPollForm({ poll }: EditPollFormProps) {
               </div>
             </CardContent>
           </Card>
-        )}
+        </div>
 
         <div className="flex justify-center">
           <Button type="submit" size="lg" disabled={isSubmitting}>

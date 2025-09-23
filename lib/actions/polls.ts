@@ -132,8 +132,13 @@ export async function editPollAction(pollId: string, formData: FormData) {
 		const question = formData.get("question") as string;
 		const allowMultiple = formData.get("allowMultiple") === "on";
 		const requireAuth = formData.get("requireAuth") === "on";
-		const endDate = formData.get("endDate") as string;
+		let endDate: string | null = formData.get("endDate") as string;
 		const options = formData.getAll("options") as string[];
+
+		// Treat empty or invalid endDate as null (match createPollAction)
+		if (!endDate || isNaN(new Date(endDate).getTime())) {
+			endDate = null;
+		}
 
 		// Validate required fields
 		if (!title || !question || options.length < 2) {
@@ -152,7 +157,7 @@ export async function editPollAction(pollId: string, formData: FormData) {
 				question: question.trim(),
 				allow_multiple: allowMultiple,
 				require_auth: requireAuth,
-				end_date: endDate || null,
+				end_date: endDate,
 			})
 			.eq("id", pollId);
 

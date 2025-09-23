@@ -8,6 +8,7 @@ interface Poll {
   optionsCount: number;
   totalVotes: number;
   createdAt: string;
+  endDate?: string | null;
 }
 
 interface PollCardProps {
@@ -50,6 +51,13 @@ export function PollCard({ poll }: PollCardProps) {
           </div>
           <div className="mt-3 text-xs text-muted-foreground">
             Created on {formatDate(poll.createdAt)}
+            {poll.endDate && (
+              <div className="mt-1">
+                {new Date(poll.endDate) < new Date() 
+                  ? "Ended on " 
+                  : "Ends on "}{formatDate(poll.endDate)}
+              </div>
+            )}
           </div>
         </CardContent>
       </Link>

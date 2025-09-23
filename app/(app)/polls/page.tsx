@@ -42,6 +42,7 @@ export default async function PollsPage() {
     optionsCount: poll.poll_options?.length || 0,
     totalVotes: poll.votes?.length || 0,
     createdAt: poll.created_at,
+    endDate: poll.end_date,
   })) || [];
 
   return (

@@ -128,6 +128,14 @@ export default async function PollPage({ params }: { params: Promise<{ id: strin
             <span>Created on {new Date(typedPoll.created_at).toLocaleDateString()}</span>
           </div>
           
+          {typedPoll.end_date && (
+            <div className="text-sm text-muted-foreground text-center pt-1">
+              {new Date(typedPoll.end_date) < new Date() 
+                ? "Poll ended on " 
+                : "Poll ends on "} {new Date(typedPoll.end_date).toLocaleDateString()}
+            </div>
+          )}
+          
           {totalVotes > 0 && (
             <div className="text-sm text-muted-foreground text-center pt-2">
               {totalVotes} total vote{totalVotes !== 1 ? 's' : ''}

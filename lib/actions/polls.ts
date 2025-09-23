@@ -310,7 +310,7 @@ export async function submitVoteAction(formData: FormData): Promise<{ success: b
 			}
 		} else {
 			// Anonymous user - only interact with cookies here
-			const cookieStore = cookies();
+			const cookieStore = await cookies();
 			anonymousVoterId = cookieStore.get("anonymous_voter_id")?.value;
 
 			if (anonymousVoterId) {
@@ -320,7 +320,7 @@ export async function submitVoteAction(formData: FormData): Promise<{ success: b
 					.eq("poll_id", pollId)
 					.eq("anonymous_voter_id", anonymousVoterId)
 					.single();
-				
+                
 				if (existingVoteError && existingVoteError.code !== 'PGRST116') {
 					console.error("Error checking for existing anonymous vote:", existingVoteError);
 					return { success: false, error: "Failed to verify anonymous vote" };
